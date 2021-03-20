@@ -1,16 +1,23 @@
-import random
+#!/usr/bin/env python
+# coding: utf-8
 
+# In[ ]:
+
+
+from copy import deepcopy
 import numpy as np
-
+import pdb
+import random
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
-
 from torchvision import datasets, transforms, utils
-
 from tqdm import tqdm
 
 from model import IGEBM
+
+
+# In[ ]:
 
 
 class SampleBuffer:
@@ -51,7 +58,7 @@ def sample_buffer(buffer, batch_size=128, p=0.95, device='cuda'):
 
     n_replay = (np.random.rand(batch_size) < p).sum()
 
-    replay_sample, replay_id = buffer.get(n_replay)
+    replay_sample, replay_id = buffer.get(n_replay, device=device)
     random_sample = torch.rand(batch_size - n_replay, 3, 32, 32, device=device)
     random_id = torch.randint(0, 10, (batch_size - n_replay,), device=device)
 
@@ -102,7 +109,6 @@ def train(model, alpha=1, step_size=10, sample_step=60, device='cuda'):
     loader = tqdm(enumerate(sample_data(loader)))
 
     buffer = SampleBuffer()
-
     noise = torch.randn(128, 3, 32, 32, device=device)
 
     parameters = model.parameters()
@@ -111,7 +117,7 @@ def train(model, alpha=1, step_size=10, sample_step=60, device='cuda'):
     for i, (pos_img, pos_id) in loader:
         pos_img, pos_id = pos_img.to(device), pos_id.to(device)
 
-        neg_img, neg_id = sample_buffer(buffer, pos_img.shape[0])
+        neg_img, neg_id = sample_buffer(buffer, pos_img.shape[0], device=device)
         neg_img.requires_grad = True
 
         requires_grad(parameters, False)
@@ -128,7 +134,7 @@ def train(model, alpha=1, step_size=10, sample_step=60, device='cuda'):
             neg_out.sum().backward()
             neg_img.grad.data.clamp_(-0.01, 0.01)
 
-            neg_img.data.add_(-step_size, neg_img.grad.data)
+            neg_img.data.add_(neg_img.grad.data, alpha=-step_size)
 
             neg_img.grad.detach_()
             neg_img.grad.zero_()
@@ -168,6 +174,11 @@ def train(model, alpha=1, step_size=10, sample_step=60, device='cuda'):
             )
 
 
+# In[ ]:
+
+
 if __name__ == '__main__':
-    model = IGEBM(10).to('cuda')
-    train(model)
+    device = "cuda:4"
+    model = IGEBM(10).to(device)
+    train(model, device=device)
+
