@@ -1,5 +1,5 @@
+import pdb
 import torch
-
 from torch import nn
 from torch.nn import functional as F
 from torch.nn import utils
@@ -142,10 +142,11 @@ class ResBlock(nn.Module):
 
 
 class IGEBM(nn.Module):
-    def __init__(self, n_class=None):
+    def __init__(self, in_channels=3, n_class=None):
         super().__init__()
-
-        self.conv1 = spectral_norm(nn.Conv2d(3, 128, 3, padding=1), std=1)
+        self.in_channels = in_channels
+        self.n_class = n_class
+        self.conv1 = spectral_norm(nn.Conv2d(in_channels, 128, 3, padding=1), std=1)
 
         self.blocks = nn.ModuleList(
             [
